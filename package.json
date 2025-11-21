@@ -1,6 +1,6 @@
 {
   "name": "sap-servicelayer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Biblioteca TypeScript para integração com SAP Service Layer API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
