@@ -13,35 +13,36 @@ npm install sap-servicelayer
 ```typescript
 import { ServiceLayer } from 'sap-servicelayer';
 
-const serviceLayer = new ServiceLayer();
-
-// Inicializar conexão
-await serviceLayer.init({
+// Criar instância com todas as configurações
+const serviceLayer = new ServiceLayer({
   database: 'SBODEMOUS',
+  url: 'https://localhost:50000/b1s/v1',
   username: 'manager',
   password: '1234',
-  url: 'https://localhost:50000/b1s/v1',
-  language: '29'
+  language: '29', // opcional, padrão: '29'
+  timeout: 0 // opcional, padrão: 0
 });
 
-// Executar uma requisição GET
-const customers = await serviceLayer.execute({
+// Fazer login (sem parâmetros, usa as configurações do construtor)
+await serviceLayer.login();
+
+// Executar uma requisição GET usando método auxiliar
+const customers = await serviceLayer.get({
   url: 'BusinessPartners',
-  method: 'GET',
   page: 0,
   size: 20
 });
 
-// Executar uma requisição POST
-const newCustomer = await serviceLayer.execute({
+// Executar uma requisição POST usando método auxiliar
+const newCustomer = await serviceLayer.post({
   url: 'BusinessPartners',
-  method: 'POST',
   data: {
     CardCode: 'C00001',
     CardName: 'Cliente Teste',
     CardType: 'C'
   }
 });
+
 
 // Executar operações em batch
 const batchResults = await serviceLayer.executeBatch({
@@ -63,30 +64,72 @@ const batchResults = await serviceLayer.executeBatch({
 
 ## API
 
-### `init(config: InitConfig): Promise<void>`
+### `constructor(config: ServiceLayerConfig)`
 
-Inicializa a conexão com o Service Layer e realiza o login.
+Construtor da classe ServiceLayer.
 
 **Parâmetros:**
 - `database`: Nome do banco de dados
+- `url`: URL base do Service Layer (ex: `https://localhost:50000/b1s/v1`)
 - `username`: Nome de usuário
 - `password`: Senha
-- `url`: URL base do Service Layer (ex: `https://localhost:50000/b1s/v1`)
-- `language`: Idioma (padrão: `"29"`)
-- `timeout`: Timeout em milissegundos (padrão: `0`)
+- `language`: Idioma (opcional, padrão: `"29"`)
+- `timeout`: Timeout em milissegundos (opcional, padrão: `0`)
 
-### `execute<T>(config: ExecuteConfig): Promise<PaginatedResponse<T>>`
+### `login(): Promise<void>`
 
-Executa uma requisição HTTP no Service Layer.
+Realiza login no Service Layer usando as credenciais configuradas no construtor.
+
+### `get<T>(config: RequestConfig): Promise<PaginatedResponse<T>>`
+
+Executa uma requisição GET.
 
 **Parâmetros:**
 - `url`: Endpoint relativo (ex: `BusinessPartners`)
-- `method`: Método HTTP (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`)
 - `header`: Headers customizados (opcional)
-- `data`: Dados para enviar no body (opcional)
 - `page`: Número da página para paginação (opcional)
 - `size`: Tamanho da página (opcional)
 - `timeout`: Timeout em milissegundos (opcional)
+
+### `post<T>(config: RequestConfig): Promise<PaginatedResponse<T>>`
+
+Executa uma requisição POST.
+
+**Parâmetros:**
+- `url`: Endpoint relativo
+- `header`: Headers customizados (opcional)
+- `data`: Dados para enviar no body (opcional)
+- `timeout`: Timeout em milissegundos (opcional)
+
+### `put<T>(config: RequestConfig): Promise<PaginatedResponse<T>>`
+
+Executa uma requisição PUT.
+
+**Parâmetros:**
+- `url`: Endpoint relativo
+- `header`: Headers customizados (opcional)
+- `data`: Dados para enviar no body (opcional)
+- `timeout`: Timeout em milissegundos (opcional)
+
+### `patch<T>(config: RequestConfig): Promise<PaginatedResponse<T>>`
+
+Executa uma requisição PATCH.
+
+**Parâmetros:**
+- `url`: Endpoint relativo
+- `header`: Headers customizados (opcional)
+- `data`: Dados para enviar no body (opcional)
+- `timeout`: Timeout em milissegundos (opcional)
+
+### `delete<T>(config: RequestConfig): Promise<PaginatedResponse<T>>`
+
+Executa uma requisição DELETE.
+
+**Parâmetros:**
+- `url`: Endpoint relativo
+- `header`: Headers customizados (opcional)
+- `timeout`: Timeout em milissegundos (opcional)
+
 
 ### `executeBatch(config: ExecuteBatchConfig): Promise<BatchResponse[]>`
 
@@ -114,9 +157,8 @@ Realiza logout do Service Layer.
 
 A biblioteca exporta os seguintes tipos TypeScript:
 
-- `LoginConfig`
-- `InitConfig`
-- `ExecuteConfig`
+- `ServiceLayerConfig`
+- `RequestConfig`
 - `ExecuteBatchConfig`
 - `ExecuteSmlsvcConfig`
 - `PaginatedResponse<T>`
@@ -133,18 +175,6 @@ A biblioteca exporta os seguintes tipos TypeScript:
 - ✅ Suporte a transações batch
 - ✅ Tratamento de erros robusto
 
-## Desenvolvimento
-
-```bash
-# Instalar dependências
-npm install
-
-# Compilar TypeScript
-npm run build
-
-# Publicar no npm
-npm publish
-```
 
 ## Licença
 

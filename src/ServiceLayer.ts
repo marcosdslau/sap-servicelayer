@@ -1,9 +1,9 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import https from 'https';
 import {
-  LoginConfig,
-  InitConfig,
+  ServiceLayerConfig,
   ExecuteConfig,
+  RequestConfig,
   ExecuteBatchConfig,
   ExecuteSmlsvcConfig,
   PaginatedResponse,
@@ -23,69 +23,52 @@ const agent = new https.Agent({
 export class ServiceLayer {
   private cookie: string = '';
   private routerId: string = '';
-  private database: string | null = null;
-  private username: string = '';
-  private password: string = '';
-  private url: string = '';
-  private language: string = '29';
+  private database: string;
+  private username: string;
+  private password: string;
+  private url: string;
+  private language: string;
+  private timeout: number;
   private retries: number = 0;
 
   /**
-   * Realiza login no Service Layer
-   * @param config Configurações de login
+   * Construtor da classe ServiceLayer
+   * @param config Configurações do Service Layer
    */
-  async login(config: LoginConfig): Promise<void> {
-    try {
-      const url = `${this.url}/Login`;
-
-      await axios.post(
-        url,
-        {
-          CompanyDB: this.database,
-          UserName: config.username,
-          Password: config.password,
-          Language: config.language || this.language,
-        },
-        {
-          httpsAgent: agent,
-          timeout: config.timeout || 0,
-        }
-      );
-    } catch (ex) {
-      throw ex;
-    }
+  constructor(config: ServiceLayerConfig) {
+    this.database = config.database;
+    this.url = config.url;
+    this.username = config.username;
+    this.password = config.password;
+    this.language = config.language || '29';
+    this.timeout = config.timeout || 0;
   }
 
   /**
-   * Inicializa a conexão com o Service Layer
-   * @param config Configurações de inicialização
+   * Realiza login no Service Layer
    */
-  async init(config: InitConfig): Promise<void> {
-    const execute = async (retries: number = 0): Promise<void> => {
-      this.routerId = '';
-      this.cookie = '';
-      this.database = config.database;
-      this.username = config.username;
-      this.password = config.password;
-      this.url = config.url;
-      this.language = config.language || '29';
+  async login(): Promise<void> {
+    const me = this;
 
-      const urlParse = `${this.url}/Login`;
+    async function execute(retries: number = 0): Promise<void> {
+      me.routerId = '';
+      me.cookie = ''; // Quando mandamos o cookie antigo no login, ocorre um erro na SL. Erro: name.toLowerCase is not a function
+
+      const urlParse = `${me.url}/Login`;
 
       let response: AxiosResponse;
       try {
         response = await axios.post(
           urlParse,
           {
-            CompanyDB: config.database,
-            UserName: config.username,
-            Password: config.password,
-            Language: this.language,
+            CompanyDB: me.database,
+            UserName: me.username,
+            Password: me.password,
+            Language: me.language,
           },
           {
             httpsAgent: agent,
-            timeout: config.timeout || 0,
-            headers: this.cookie ? { Cookie: this.cookie } : undefined,
+            timeout: me.timeout,
           }
         );
       } catch (ex) {
@@ -117,13 +100,13 @@ export class ServiceLayer {
           const [key, value] = cookie.split('=');
 
           if (cookie.indexOf('ROUTEID') > -1) {
-            this.routerId += `${key}=${value}`;
+            me.routerId += `${key}=${value}`;
           } else {
-            this.cookie += `${key}=${value}`;
+            me.cookie += `${key}=${value}`;
           }
         });
       }
-    };
+    }
 
     return await execute();
   }
@@ -139,11 +122,11 @@ export class ServiceLayer {
   }
 
   /**
-   * Executa uma requisição no Service Layer
+   * Executa uma requisição no Service Layer (método privado)
    * @param config Configurações da requisição
    * @returns Dados da resposta
    */
-  async execute<T = any>(config: ExecuteConfig): Promise<PaginatedResponse<T>> {
+  private async execute<T = any>(config: ExecuteConfig): Promise<PaginatedResponse<T>> {
     const executeRequest = async (retries: number = 0): Promise<PaginatedResponse<T>> => {
       const customHeaders: Record<string, string> = {
         Cookie: this.cookie,
@@ -192,13 +175,7 @@ export class ServiceLayer {
         switch (error.response.status) {
           case 401:
             console.log(`Reconectando na service layer. ${retries}`);
-            await this.init({
-              database: this.database!,
-              username: this.username,
-              password: this.password,
-              url: this.url,
-              language: this.language,
-            });
+            await this.login();
             if (retries < 5) {
               return await executeRequest(++retries);
             } else {
@@ -347,13 +324,7 @@ export class ServiceLayer {
         switch (error.response.status) {
           case 401:
             console.log(`Reconectando na service layer. ${retries}`);
-            await this.init({
-              database: this.database!,
-              username: this.username,
-              password: this.password,
-              url: this.url,
-              language: this.language,
-            });
+            await this.login();
             if (retries < 5) {
               return await executeBatchRequest(++retries);
             } else {
@@ -482,13 +453,7 @@ export class ServiceLayer {
         switch (error.response.status) {
           case 401:
             console.log(`Reconectando na service layer. ${retries}`);
-            await this.init({
-              database: this.database!,
-              username: this.username,
-              password: this.password,
-              url: this.url,
-              language: this.language,
-            });
+            await this.login();
             if (retries < 5) {
               return await executeRequest(++retries);
             } else {
@@ -508,6 +473,81 @@ export class ServiceLayer {
     };
 
     return await executeRequest();
+  }
+
+  /**
+   * Executa uma requisição GET
+   * @param config Configurações da requisição
+   * @returns Dados da resposta
+   */
+  async get<T = any>(config: RequestConfig): Promise<PaginatedResponse<T>> {
+    return this.execute<T>({
+      url: config.url,
+      method: 'GET',
+      header: config.header,
+      page: config.page,
+      size: config.size,
+      timeout: config.timeout,
+    });
+  }
+
+  /**
+   * Executa uma requisição POST
+   * @param config Configurações da requisição
+   * @returns Dados da resposta
+   */
+  async post<T = any>(config: RequestConfig): Promise<PaginatedResponse<T>> {
+    return this.execute<T>({
+      url: config.url,
+      method: 'POST',
+      header: config.header,
+      data: config.data,
+      timeout: config.timeout,
+    });
+  }
+
+  /**
+   * Executa uma requisição PUT
+   * @param config Configurações da requisição
+   * @returns Dados da resposta
+   */
+  async put<T = any>(config: RequestConfig): Promise<PaginatedResponse<T>> {
+    return this.execute<T>({
+      url: config.url,
+      method: 'PUT',
+      header: config.header,
+      data: config.data,
+      timeout: config.timeout,
+    });
+  }
+
+  /**
+   * Executa uma requisição PATCH
+   * @param config Configurações da requisição
+   * @returns Dados da resposta
+   */
+  async patch<T = any>(config: RequestConfig): Promise<PaginatedResponse<T>> {
+    return this.execute<T>({
+      url: config.url,
+      method: 'PATCH',
+      header: config.header,
+      data: config.data,
+      timeout: config.timeout,
+    });
+  }
+
+  /**
+   * Executa uma requisição DELETE
+   * @param config Configurações da requisição
+   * @returns Dados da resposta
+   */
+  async delete<T = any>(config: RequestConfig): Promise<PaginatedResponse<T>> {
+    return this.execute<T>({
+      url: config.url,
+      method: 'DELETE',
+      header: config.header,
+      timeout: config.timeout,
+    });
   }
 }
 

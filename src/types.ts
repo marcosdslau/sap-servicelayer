@@ -1,21 +1,11 @@
 /**
- * Configurações de login para o Service Layer
+ * Configurações do construtor do Service Layer
  */
-export interface LoginConfig {
-  username: string;
-  password: string;
-  language?: string;
-  timeout?: number;
-}
-
-/**
- * Configurações de inicialização do Service Layer
- */
-export interface InitConfig {
+export interface ServiceLayerConfig {
   database: string;
+  url: string;
   username: string;
   password: string;
-  url: string;
   language?: string;
   timeout?: number;
 }
@@ -26,6 +16,18 @@ export interface InitConfig {
 export interface ExecuteConfig {
   url: string;
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  header?: Record<string, string>;
+  data?: any;
+  page?: number;
+  size?: number;
+  timeout?: number;
+}
+
+/**
+ * Configurações simplificadas para métodos HTTP auxiliares
+ */
+export interface RequestConfig {
+  url: string;
   header?: Record<string, string>;
   data?: any;
   page?: number;
